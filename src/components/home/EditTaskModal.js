@@ -1,4 +1,5 @@
-import React from 'react';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import React, {useEffect, useState} from 'react';
 import {
   View,
   Text,
@@ -6,9 +7,61 @@ import {
   StyleSheet,
   Modal,
   TouchableOpacity,
+  Alert,
 } from 'react-native';
+import {useDispatch, useSelector} from 'react-redux';
+import {setTasks} from '../../redux/actions';
 
-const EditTaskModal = ({visible, onClose, onSave, title, about}) => {
+const EditTaskModal = ({visible, onClose}) => {
+  const {tasks, taskID} = useSelector(state => state.taskReducer);
+  const dispatch = useDispatch();
+
+  const [title, setTitle] = useState('');
+  const [about, setAbout] = useState('');
+
+  useEffect(() => {
+    getTask();
+    console.log(taskID)
+  }, [taskID]);
+
+  const getTask = () => {
+    const Task = tasks.find(task => task.ID === taskID);
+    if (Task) {
+      setTitle(Task.Title);
+      setAbout(Task.Desc);
+    }
+  };
+
+  const setTask = () => {
+    if (title.length === 0) {
+      Alert.alert('Warning!', 'Please write your task title.');
+    } else {
+      try {
+        var Task = {
+          ID: taskID,
+          Title: title,
+          Desc: about,
+        };
+        const index = tasks.findIndex(task => task.ID === taskID);
+        let newTasks = [];
+        if (index > -1) {
+          newTasks = [...tasks];
+          newTasks[index] = Task;
+        } else {
+          newTasks = [...tasks, Task];
+        }
+        AsyncStorage.setItem('Tasks', JSON.stringify(newTasks))
+          .then(() => {
+            dispatch(setTasks(newTasks));
+            Alert.alert('Success!', 'Task saved successfully.');
+          })
+          .catch(err => console.log(err));
+      } catch (error) {
+        console.log(error);
+      }
+    }
+  };
+
   return (
     <Modal
       animationType="slide"
@@ -22,14 +75,14 @@ const EditTaskModal = ({visible, onClose, onSave, title, about}) => {
             placeholder="Title..."
             placeholderTextColor="#BEBEBE"
             value={title}
-            // onChangeText={setTitle}
+            onChangeText={value => setTitle(value)}
           />
           <TextInput
             style={styles.modalInput}
             multiline
             numberOfLines={10}
-            value={title}
-            onChangeText={about}
+            value={about}
+            onChangeText={value => setAbout(value)}
             placeholder="Enter task title"
             placeholderTextColor="#BEBEBE"
           />
@@ -37,7 +90,11 @@ const EditTaskModal = ({visible, onClose, onSave, title, about}) => {
             <TouchableOpacity style={styles.button} onPress={onClose}>
               <Text style={styles.buttonText}>Cancel</Text>
             </TouchableOpacity>
-            <TouchableOpacity style={styles.button} onPress={(onSave, onClose)}>
+            <TouchableOpacity
+              style={styles.button}
+              onPress={() => {
+                setTask(), onClose();
+              }}>
               <Text style={styles.buttonText}>Save</Text>
             </TouchableOpacity>
           </View>
